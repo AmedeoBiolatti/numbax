@@ -21,16 +21,17 @@ fn(1)
 
 ### Mini-benchmark
 
-The mini-benchmark in `examples/minimal_example.py` returns the following times (on CPU)
+The mini-benchmark in `examples/minimal_example.py` returns the following times (in seconds)
 
-|           | Compile + first run (seconds) | 100 successive runs (seconds) | 
-|---------------|-------------------------------|------------------------|
-| JAX           | 0.210734                      | 2.960469               |
-| JAX-JIT       | 0.074698                      | 0.023648               |
-| NumPy         | 0.000551                      | 0.026877               |
-| Numba         | 9.911505                      | 0.005360               |
-| Numba-Fast    | 10.324011                     | 0.004864               |
-
+|                       | Compile + first run | 100 successive runs | 
+|-----------------------|---------------------|---------------------|
+| jax                   | 0.162113            | 2.724355            |
+| jax-jit               | 0.059200            | 0.021689            |
+| jax *(fori_loop)*     | 0.060702            | 4.823792            |
+| jax-jit *(fori_loop)* | 0.040832            | 0.006865            |
+| numpy                 | 0.000317            | 0.019987            |
+| numba                 | 9.049266            | 0.005530            |
+| numba-fast            | 11.035710           | 0.004697            |
 
 # WARNING: Very Early Development 🚧
 

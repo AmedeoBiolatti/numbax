@@ -21,6 +21,25 @@ def fn(x):
     return x
 
 
+def fn_loop(x):
+    def step(carry, x):
+        y = carry + x
+        return carry, y
+
+    stacked, x = jax.lax.scan(step, x, xs=jax.numpy.arange(100))
+
+    def step(_, x):
+        x = jax.numpy.cos(x)
+        x = jax.numpy.sin(x)
+        return x
+
+    x = x.astype("float32")
+    x = jax.lax.fori_loop(0, 100, step, x)
+
+    x = x * 2 + 1
+    return x
+
+
 jaxpr = jax.make_jaxpr(fn)(1)
 
 fn_numpized = numpize.numpize_jaxpr(jaxpr)
@@ -31,6 +50,8 @@ fn_numba_fast = numba.njit(fn_numpized, parallel=False, fastmath=True)
 for (f_, f_name) in [
     (fn, 'jax'),
     (jax.jit(fn), 'jax-jit'),
+    (fn_loop, 'jax_fori_loop'),
+    (jax.jit(fn_loop), 'jax_fori_loop-jit'),
     (fn_numpized, 'numpy'),
     (fn_numba, 'numba'),
     (fn_numba_fast, 'numba-fast')
