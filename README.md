@@ -21,7 +21,7 @@ fn(1)
 
 ### Mini-benchmark
 
-The mini-benchmark in `examples/minimal_example.py` returns the folling times
+The mini-benchmark in `examples/minimal_example.py` returns the following times (on CPU)
 
 |           | Compile + first run (seconds) | 100 successive runs (seconds) | 
 |---------------|-------------------------------|------------------------|
