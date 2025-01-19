@@ -4,7 +4,7 @@ An experimental numba compiler for JAX
 
 ### Quickstart
 
-*coming soon*: the decorator is currently not working yet, but it will be available soon
+*coming soon*: The decorator is not working yet but will be available soon.
 
 ```python
 import jax
@@ -23,8 +23,8 @@ fn(1)
 
 The mini-benchmark in `examples/minimal_example.py` returns the folling times
 
-| Test Case | Compile + first run (seconds) | 100 successive runs (seconds) | 
-|-----------|-------------------------------|------------------------|
+|           | Compile + first run (seconds) | 100 successive runs (seconds) | 
+|---------------|-------------------------------|------------------------|
 | JAX           | 0.210734                      | 2.960469               |
 | JAX-JIT       | 0.074698                      | 0.023648               |
 | NumPy         | 0.000551                      | 0.026877               |
