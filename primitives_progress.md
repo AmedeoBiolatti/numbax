@@ -1,0 +1,151 @@
+- [ ] abs_p
+- [ ] acos_p
+- [ ] acosh_p
+- [x] add_p
+- [ ] after_all_p
+- [ ] all_gather_p
+- [ ] all_to_all_p
+- [ ] and_p
+- [ ] approx_top_k_p
+- [ ] argmax_p
+- [ ] argmin_p
+- [ ] asin_p
+- [ ] asinh_p
+- [ ] atan2_p
+- [ ] atan_p
+- [ ] atanh_p
+- [ ] axis_index_p
+- [ ] bessel_i0e_p
+- [ ] bessel_i1e_p
+- [ ] bitcast_convert_type_p
+- [ ] broadcast_in_dim_p
+- [ ] cbrt_p
+- [ ] ceil_p
+- [ ] clamp_p
+- [ ] clz_p
+- [ ] complex_p
+- [ ] concatenate_p
+- [x] cond_p
+- [ ] conj_p
+- [ ] conv_general_dilated_p
+- [x] convert_element_type_p
+- [ ] copy_p
+- [x] cos_p
+- [ ] cosh_p
+- [ ] create_token_p
+- [ ] cumlogsumexp_p
+- [ ] cummax_p
+- [ ] cummin_p
+- [ ] cumprod_p
+- [ ] cumsum_p
+- [ ] device_put_p
+- [ ] digamma_p
+- [ ] div_p
+- [ ] dot_general_p
+- [ ] dynamic_slice_p
+- [ ] dynamic_update_slice_p
+- [x] eq_p
+- [ ] eq_to_p
+- [ ] erf_inv_p
+- [ ] erf_p
+- [ ] erfc_p
+- [ ] exp2_p
+- [x] exp_p
+- [ ] expm1_p
+- [ ] fft_p
+- [ ] floor_p
+- [ ] gather_p
+- [x] ge_p
+- [x] gt_p
+- [ ] igamma_grad_a_p
+- [ ] igamma_p
+- [ ] igammac_p
+- [ ] imag_p
+- [ ] infeed_p
+- [ ] integer_pow_p
+- [x] iota_p
+- [ ] is_finite_p
+- [x] le_p
+- [ ] le_to_p
+- [ ] lgamma_p
+- [ ] linear_solve_p
+- [ ] log1p_p
+- [x] log_p
+- [ ] logistic_p
+- [x] lt_p
+- [ ] lt_to_p
+- [ ] max_p
+- [ ] min_p
+- [x] mul_p
+- [ ] ne_p
+- [ ] neg_p
+- [ ] nextafter_p
+- [ ] not_p
+- [ ] optimization_barrier_p
+- [ ] or_p
+- [ ] outfeed_p
+- [ ] pad_p
+- [ ] pmax_p
+- [ ] pmin_p
+- [ ] polygamma_p
+- [ ] population_count_p
+- [ ] pow_p
+- [ ] ppermute_p
+- [ ] psum_p
+- [ ] ragged_all_to_all_p
+- [ ] random_gamma_grad_p
+- [ ] real_p
+- [ ] reduce_and_p
+- [ ] reduce_max_p
+- [ ] reduce_min_p
+- [ ] reduce_or_p
+- [ ] reduce_p
+- [ ] reduce_precision_p
+- [ ] reduce_prod_p
+- [ ] reduce_sum_p
+- [ ] reduce_window_max_p
+- [ ] reduce_window_min_p
+- [ ] reduce_window_p
+- [ ] reduce_window_sum_p
+- [ ] reduce_xor_p
+- [ ] regularized_incomplete_beta_p
+- [ ] rem_p
+- [ ] reshape_p
+- [ ] rev_p
+- [ ] rng_bit_generator_p
+- [ ] rng_uniform_p
+- [ ] round_p
+- [ ] rsqrt_p
+- [x] scan_p
+- [ ] scatter_add_p
+- [ ] scatter_max_p
+- [ ] scatter_min_p
+- [ ] scatter_mul_p
+- [ ] scatter_p
+- [ ] scatter_sub_p
+- [ ] select_and_gather_add_p
+- [ ] select_and_scatter_add_p
+- [ ] select_and_scatter_p
+- [ ] select_n_p
+- [ ] sharding_constraint_p
+- [ ] shift_left_p
+- [ ] shift_right_arithmetic_p
+- [ ] shift_right_logical_p
+- [ ] sign_p
+- [x] sin_p
+- [ ] sinh_p
+- [ ] slice_p
+- [ ] sort_p
+- [ ] split_p
+- [ ] sqrt_p
+- [ ] square_p
+- [ ] squeeze_p
+- [ ] stop_gradient_p
+- [ ] sub_p
+- [ ] tan_p
+- [ ] tanh_p
+- [ ] top_k_p
+- [ ] transpose_p
+- [ ] while_p
+- [ ] xor_p
+- [ ] zeta_p
