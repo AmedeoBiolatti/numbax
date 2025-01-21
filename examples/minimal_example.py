@@ -43,7 +43,6 @@ def fn_loop(x):
 jaxpr = jax.make_jaxpr(fn)(1)
 
 fn_numpized = numpize.numpize_jaxpr(jaxpr)
-
 fn_numba = numba.njit(fn_numpized, parallel=False, fastmath=False)
 fn_numba_fast = numba.njit(fn_numpized, parallel=False, fastmath=True)
 

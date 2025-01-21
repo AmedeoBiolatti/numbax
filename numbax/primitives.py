@@ -1,4 +1,8 @@
 import jax
+from numba import prange
+from scipy.stats import kappa4
+
+from numbax import utils
 
 _NP = 'np'
 
@@ -37,17 +41,7 @@ class Primitive:
         return tuple(self.varname(arg) for arg in args)
 
     def varname(self, arg: jax.core.Var | jax.core.Literal) -> str:
-        def _jaxpr_var_name(v):
-            name = str(v)
-            if isinstance(v, jax.core.Var):
-                name = name.split(":")[0]
-                name = name.replace("(", "_")
-                name = name.replace(")", "_")
-                name = name.replace("=", "_")
-            return name
-
-        # name: str = (str(arg) + "_") if isinstance(arg, jax.core.Var) else str(arg)
-        name: str = _jaxpr_var_name(arg)
+        name: str = utils.jaxpr_var_name(arg)
         return name
 
 
@@ -110,46 +104,124 @@ class Iota(Primitive):
 
 class Scan(Primitive):
     def __init__(self):
-        super().__init__(valid_kwargs=['reverse', 'length', 'jaxpr', 'num_consts', 'num_carry', 'linear', 'unroll',
-                                       '_split_transpose'],
-                         n_args=2)
+        super().__init__(
+            valid_kwargs=['reverse', 'length', 'jaxpr', 'num_consts', 'num_carry', 'linear', 'unroll',
+                          '_split_transpose'],
+            n_args=(2, 100)
+        )
 
     def _call(self, *args, **params) -> tuple[list[str], list[jax.core.ClosedJaxpr]]:
         assert not params['reverse']  # TODO
         assert params['num_consts'] == 0  # TODO
-        assert params['num_carry'] == 1
-        assert params['linear'] == (False, False)
+        assert params['num_carry'] >= 1
+        assert isinstance(params['linear'], tuple)
+        assert all([not li for li in params['linear']])
         assert params['unroll'] == 1
+        assert not params['_split_transpose']
 
-        init, xs = self.varnames(*args)[:2]
+        num_carry = params['num_carry']
+        length = params['length']
 
-        aux_jaxpr = params['jaxpr']
+        varnames = self.varnames(*args)
+        if num_carry + 1 == len(varnames):
+            init, xs = varnames[:-1], varnames[-1]
+        elif num_carry == len(varnames):
+            init = varnames
+            xs = f"range({params['length']})"
+        else:
+            raise ValueError
+
+        if isinstance(init, list | tuple):
+            init = ", ".join(init)
+
+        aux_jaxpr: jax.jaxpr = params['jaxpr']
 
         lines = []
         lines.append(f"_carry = {init}")
         lines.append("_ys = []")
         lines.append(f"for _x in {xs}:")
-        lines.append(f"    _carry, _y = aux_fn0(_carry, _x)")
-        lines.append("    _ys.append(_y)")
-        lines.append(f"_ys_stacked = np.empty((len({xs}),))")
-        lines.append(f"for i in range(len({xs})):")
-        lines.append(f"    _ys_stacked[i] = _ys[i]")
-        lines.append(f"_carry, _ys_stacked")
+
+        if len(aux_jaxpr.jaxpr.invars) == num_carry + 1:
+            lines.append(f"    _carry_nd_y = aux_fn0(*_carry, _x)")
+        if len(aux_jaxpr.jaxpr.invars) == num_carry:
+            lines.append(f"    _carry_nd_y = aux_fn0(*_carry)")
+        else:
+            raise ValueError
+
+        lines.append(f"    _carry = _carry_nd_y[:{num_carry}]")
+        if len(aux_jaxpr.jaxpr.invars) == num_carry + 1:
+            lines.append(f"    _y = _carry_nd_y[-1]")
+            lines.append("    _ys.append(_y)")
+
+        if len(aux_jaxpr.jaxpr.invars) == num_carry + 1:
+            lines.append(f"_ys_stacked = np.empty((len({xs}),))")
+            lines.append(f"for i in range({length}):")
+            lines.append(f"    _ys_stacked[i] = _ys[i]")
+            if params["num_carry"] > 1:
+                lines.append(f"_carry + (_ys_stacked,)")
+            else:
+                lines.append(f"_carry, _ys_stacked")
+        elif len(aux_jaxpr.jaxpr.invars) == num_carry:
+            lines.append(f"_carry")
 
         return lines, [aux_jaxpr]
+
+
+class BinaryOperator(Primitive):
+    def __init__(self, symbol):
+        super().__init__(n_args=2)
+        self.symbol = symbol
+
+    def _call(self, *args, **kwargs) -> tuple[list[str], list[jax.core.ClosedJaxpr]]:
+        names = self.varnames(*args)
+        name_l, name_r = names[:2]
+
+        lines = [f"{name_l} {self.symbol} {name_r}"]
+
+        return lines, []
+
+
+class Cond(Primitive):
+    def __init__(self):
+        super().__init__(n_args=(1, 100), valid_kwargs=["branches"])
+
+    def _call(self, *args, **kwargs) -> tuple[list[str], list[jax.core.ClosedJaxpr]]:
+        assert len(kwargs["branches"]) == 2
+
+        names = self.varnames(*args)
+        cond_name = names[0]
+        var_names = names[1:]
+        args_ = ",".join(var_names)
+
+        lines = []
+        lines.append(f"aux_fn0({args_}) if {cond_name} else aux_fn1({args_})")
+
+        branch_true = kwargs["branches"][1]
+        branch_false = kwargs["branches"][0]
+
+        return lines, [branch_true, branch_false]
 
 
 _numpy_primitive_mapping = {
     jax.lax.add_p: AddPrimitive(),
     jax.lax.mul_p: MulPrimitive(),
+
     jax.lax.exp_p: NumpyUnaryFn('exp'),
     jax.lax.log_p: NumpyUnaryFn('log'),
     jax.lax.sin_p: NumpyUnaryFn('sin'),
     jax.lax.cos_p: NumpyUnaryFn('cos'),
 
+    jax.lax.gt_p: BinaryOperator(">"),
+    jax.lax.lt_p: BinaryOperator("<"),
+    jax.lax.ge_p: BinaryOperator(">="),
+    jax.lax.le_p: BinaryOperator("<="),
+    jax.lax.eq_p: BinaryOperator("=="),
+
     jax.lax.convert_element_type_p: ConvertElementType(),
     jax.lax.iota_p: Iota(),
-    jax.lax.scan_p: Scan()
+
+    jax.lax.scan_p: Scan(),
+    jax.lax.cond_p: Cond()
 }
 
 

@@ -2,12 +2,14 @@ import jax
 import numpy as np
 import numba
 
-from numbax import primitives
+from numbax import primitives, utils
 
 
-def numpize_jaxpr(jaxpr: jax.core.ClosedJaxpr):
+def numpize_jaxpr(jaxpr: jax.core.ClosedJaxpr, as_str: bool = False):
     lines = _process_closed_jaxpr(jaxpr, name='__fn')
     d = {'np': np, 'numba': numba}
+    if as_str:
+        return "\n".join(lines)
     for line in lines:
         exec(line, d)
     return d['__fn']
@@ -17,23 +19,12 @@ def _process_closed_jaxpr(jaxpr: jax.core.ClosedJaxpr, name, with_signature: boo
     return _process_jaxpr(jaxpr.jaxpr, name, with_signature=with_signature)
 
 
-def _jaxpr_var_name(v):
-    name = str(v)
-    if isinstance(v, jax.core.Var):
-        name = name.split(":")[0]
-        name = name.replace("(", "_")
-        name = name.replace(")", "_")
-        name = name.replace("=", "_")
-    return name
-
-
 def _process_jaxpr(jaxpr: jax.core.Jaxpr, name: str, with_signature: bool = False) -> list[str]:
     jaxpr_lines: list[str] = []
     other_jaxprs: list[jax.core.ClosedJaxpr] = []
 
     # invars
-    # str_invars = ', '.join([(str(v) + "_" if isinstance(v, jax.core.Var) else str(v)) for v in jaxpr.invars])
-    str_invars = ', '.join([_jaxpr_var_name(v) for v in jaxpr.invars])
+    str_invars = ', '.join(utils.jaxpr_vars_name(jaxpr.invars))
     if with_signature:
         jaxpr_lines.append(_build_cfunc_decorator(jaxpr.invars, jaxpr.outvars))
     jaxpr_lines.append(f"def {name}({str_invars}):")
@@ -45,8 +36,7 @@ def _process_jaxpr(jaxpr: jax.core.Jaxpr, name: str, with_signature: bool = Fals
         other_jaxprs.extend(eqn_other_jaxprs)
 
     # outvars
-    # str_outvars = ', '.join([(str(v) + "_" if isinstance(v, jax.core.Var) else str(v)) for v in jaxpr.outvars])
-    str_outvars = ', '.join([_jaxpr_var_name(v) for v in jaxpr.outvars])
+    str_outvars = ', '.join(utils.jaxpr_vars_name(jaxpr.outvars))
     jaxpr_lines.append(f"return {str_outvars}")
 
     i = 2 if with_signature else 1
@@ -61,15 +51,13 @@ def _process_jaxpr(jaxpr: jax.core.Jaxpr, name: str, with_signature: bool = Fals
 
 
 def _process_eqn(eqn: jax.core.JaxprEqn, name: str) -> tuple[list[str], list[jax.core.ClosedJaxpr]]:
-    # invars_str = [(str(v) + "_" if isinstance(v, jax.core.Var) else str(v)) for v in eqn.invars]
-    # outvars_str = [(str(v) + "_" if isinstance(v, jax.core.Var) else str(v)) for v in eqn.outvars]
-    invars_str = [_jaxpr_var_name(v) for v in eqn.invars]
-    outvars_str = [_jaxpr_var_name(v) for v in eqn.outvars]
+    outvars_str = utils.jaxpr_vars_name(eqn.outvars)
 
     primitive = primitives.get(eqn.primitive)
 
     eqn_lines, eqn_aux_jaxprs = primitive(*eqn.invars, **eqn.params)
-    eqn_lines = [line.replace('aux_fn0', f"{name}__aux0") for line in eqn_lines]
+    for i in range(len(eqn_aux_jaxprs)):
+        eqn_lines = [line.replace(f"aux_fn{i}", f"{name}__aux{i}") for line in eqn_lines]
 
     lhs = ', '.join(outvars_str)
     eqn_lines[-1] = f"{lhs} = {eqn_lines[-1]}"
