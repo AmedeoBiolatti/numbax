@@ -23,15 +23,18 @@ fn(1)
 
 The mini-benchmark in `examples/minimal_example.py` returns the following times (in seconds)
 
-|                       | Compile + first run | 100 successive runs | 
-|-----------------------|---------------------|---------------------|
-| jax                   | 0.162113            | 2.724355            |
-| jax-jit               | 0.059200            | 0.021689            |
-| jax *(fori_loop)*     | 0.060702            | 4.823792            |
-| jax-jit *(fori_loop)* | 0.040832            | 0.006865            |
-| numpy                 | 0.000317            | 0.019987            |
-| numba                 | 9.049266            | 0.005530            |
-| numba-fast            | 11.035710           | 0.004697            |
+|                      | Compile + first run | 100 successive runs |
+|----------------------|---------------------|---------------------|
+| jax                  | 0.088991            | 1.660780            |
+| jax-jit              | 0.056053            | 0.049823            |
+| numpy                | 0.000353            | 0.025763            |
+| numba                | 16.327550           | 0.011057            |
+| numba-fast           | 16.965312           | 0.010609            |
+| jax:fori_loop        | 0.030407            | 2.830550            |
+| jax-jit:fori_loop    | 0.023105            | 0.014057            |
+| numpy:fori_loop      | 0.000431            | 0.031376            |
+| numba:fori_loop      | 0.132297            | 0.005540            |
+| numba-fast:fori_loop | 0.131045            | 0.005505            |
 
 # WARNING: Very Early Development 🚧
 
