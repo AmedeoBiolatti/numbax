@@ -8,6 +8,10 @@ def jaxpr_var_name(v) -> str:
         name = name.replace("(", "_")
         name = name.replace(")", "_")
         name = name.replace("=", "_")
+    if isinstance(v, jax.core.Literal):
+        dtype = v.aval.dtype
+        val = v.val
+        name = f"np.{dtype}({val})"
     return name
 
 

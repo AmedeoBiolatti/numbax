@@ -138,23 +138,36 @@ class Scan(Primitive):
 
         lines = []
         lines.append(f"_carry = {init}")
-        lines.append("_ys = []")
+        if len(aux_jaxpr.jaxpr.invars) == num_carry + 1:
+            lines.append("_ys = []")
         lines.append(f"for _x in {xs}:")
 
-        if len(aux_jaxpr.jaxpr.invars) == num_carry + 1:
-            lines.append(f"    _carry_nd_y = aux_fn0(*_carry, _x)")
-        if len(aux_jaxpr.jaxpr.invars) == num_carry:
-            lines.append(f"    _carry_nd_y = aux_fn0(*_carry)")
+        if num_carry > 1:
+            if len(aux_jaxpr.jaxpr.invars) == num_carry + 1:
+                lines.append(f"    _carry_nd_y = aux_fn0(*_carry, _x)")
+            elif len(aux_jaxpr.jaxpr.invars) == num_carry:
+                lines.append(f"    _carry_nd_y = aux_fn0(*_carry)")
+            else:
+                raise ValueError(f"Scan primitive: {len(aux_jaxpr.jaxpr.invars)} invars and {num_carry} num_carry")
         else:
-            raise ValueError
+            if len(aux_jaxpr.jaxpr.invars) == num_carry + 1:
+                lines.append(f"    _carry_nd_y = aux_fn0(_carry, _x)")
+            elif len(aux_jaxpr.jaxpr.invars) == num_carry:
+                lines.append(f"    _carry_nd_y = aux_fn0(_carry)")
+            else:
+                raise ValueError(f"Scan primitive: {len(aux_jaxpr.jaxpr.invars)} invars and {num_carry} num_carry")
 
-        lines.append(f"    _carry = _carry_nd_y[:{num_carry}]")
+        if num_carry > 1:
+            lines.append(f"    _carry = _carry_nd_y[:{num_carry}]")
+        else:
+            lines.append(f"    _carry = _carry_nd_y[0]")
         if len(aux_jaxpr.jaxpr.invars) == num_carry + 1:
             lines.append(f"    _y = _carry_nd_y[-1]")
             lines.append("    _ys.append(_y)")
 
         if len(aux_jaxpr.jaxpr.invars) == num_carry + 1:
-            lines.append(f"_ys_stacked = np.empty((len({xs}),))")
+            _dtype = params["jaxpr"].jaxpr.outvars[-1].aval.dtype
+            lines.append(f"_ys_stacked = np.empty((len({xs}),), dtype=np.{_dtype})")
             lines.append(f"for i in range({length}):")
             lines.append(f"    _ys_stacked[i] = _ys[i]")
             if params["num_carry"] > 1:

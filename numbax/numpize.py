@@ -31,7 +31,7 @@ def _process_jaxpr(jaxpr: jax.core.Jaxpr, name: str, with_signature: bool = Fals
 
     # eqns
     for eqn in jaxpr.eqns:
-        eqn_lines, eqn_other_jaxprs = _process_eqn(eqn, name)
+        eqn_lines, eqn_other_jaxprs = _process_eqn(eqn, name, j=len(other_jaxprs))
         jaxpr_lines.extend(eqn_lines)
         other_jaxprs.extend(eqn_other_jaxprs)
 
@@ -50,14 +50,14 @@ def _process_jaxpr(jaxpr: jax.core.Jaxpr, name: str, with_signature: bool = Fals
     return out
 
 
-def _process_eqn(eqn: jax.core.JaxprEqn, name: str) -> tuple[list[str], list[jax.core.ClosedJaxpr]]:
+def _process_eqn(eqn: jax.core.JaxprEqn, name: str, j: int = 0) -> tuple[list[str], list[jax.core.ClosedJaxpr]]:
     outvars_str = utils.jaxpr_vars_name(eqn.outvars)
 
     primitive = primitives.get(eqn.primitive)
 
     eqn_lines, eqn_aux_jaxprs = primitive(*eqn.invars, **eqn.params)
     for i in range(len(eqn_aux_jaxprs)):
-        eqn_lines = [line.replace(f"aux_fn{i}", f"{name}__aux{i}") for line in eqn_lines]
+        eqn_lines = [line.replace(f"aux_fn{i}", f"{name}__aux{i + j}") for line in eqn_lines]
 
     lhs = ', '.join(outvars_str)
     eqn_lines[-1] = f"{lhs} = {eqn_lines[-1]}"
@@ -65,13 +65,26 @@ def _process_eqn(eqn: jax.core.JaxprEqn, name: str) -> tuple[list[str], list[jax
     return eqn_lines, eqn_aux_jaxprs
 
 
+def _dtype_mapping(dtype):
+    dtype = str(dtype)
+    _mapping = {
+        "int16": "numba.types.int16",
+        "int32": "numba.types.int32",
+        "int64": "numba.types.int64",
+        "float16": "numba.types.float16",
+        "float32": "numba.types.float32",
+        "float64": "numba.types.float64",
+    }
+    return _mapping[dtype]
+
+
 def _build_cfunc_decorator(invars, outvars) -> str:
     in_descr = []
     for a in invars:
         if len(a.aval.shape) >= 1:
-            in_descr.append(f"numba.types.Array('{a.aval.dtype}', {len(a.aval.shape)}, 'C')")
+            in_descr.append(f"numba.types.Array({_dtype_mapping(a.aval.dtype)}, {len(a.aval.shape)}, 'C')")
         else:
-            in_descr.append(f"numba.types.{a.aval.dtype}")
+            in_descr.append(_dtype_mapping(a.aval.dtype))
     if len(in_descr) == 1:
         in_descr = in_descr[0]
     else:
@@ -80,9 +93,9 @@ def _build_cfunc_decorator(invars, outvars) -> str:
     out_descr = []
     for a in outvars:
         if len(a.aval.shape) >= 1:
-            out_descr.append(f"numba.types.Array('{a.aval.dtype}', {len(a.aval.shape)}, 'C')")
+            out_descr.append(f"numba.types.Array({_dtype_mapping(a.aval.dtype)}, {len(a.aval.shape)}, 'C')")
         else:
-            out_descr.append(f"numba.types.{a.aval.dtype}")
+            out_descr.append(_dtype_mapping(a.aval.dtype))
     if len(out_descr) == 1:
         out_descr = out_descr[0]
     else:
