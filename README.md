@@ -4,8 +4,6 @@ An experimental numba compiler for JAX
 
 ### Quickstart
 
-*coming soon*: The decorator is not working yet but will be available soon.
-
 ```python
 import jax
 import numbax
