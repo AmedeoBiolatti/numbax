@@ -18,7 +18,7 @@
 - [ ] bessel_i0e_p
 - [ ] bessel_i1e_p
 - [ ] bitcast_convert_type_p
-- [ ] broadcast_in_dim_p
+- [x] broadcast_in_dim_p
 - [ ] cbrt_p
 - [ ] ceil_p
 - [ ] clamp_p
@@ -102,7 +102,7 @@
 - [ ] reduce_p
 - [ ] reduce_precision_p
 - [ ] reduce_prod_p
-- [ ] reduce_sum_p
+- [x] reduce_sum_p
 - [ ] reduce_window_max_p
 - [ ] reduce_window_min_p
 - [ ] reduce_window_p

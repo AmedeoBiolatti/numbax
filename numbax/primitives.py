@@ -1,4 +1,5 @@
 import jax
+import numpy as np
 from numba import prange
 from scipy.stats import kappa4
 
@@ -215,6 +216,42 @@ class Cond(Primitive):
         return lines, [branch_true, branch_false]
 
 
+class ReduceOperator(Primitive):
+    def __init__(self, symbol: str):
+        super().__init__(
+            n_args=1,
+            valid_kwargs=("axes",)
+        )
+        self.symbol = symbol
+
+    def _call(self, *args, **kwargs) -> tuple[list[str], list[jax.core.ClosedJaxpr]]:
+        varname = self.varname(args[0])
+        axes = kwargs["axes"]
+
+        lines = [f"{varname}_aux = {varname}"]
+        for ax in sorted(axes)[::-1]:
+            lines.append(f"{varname}_aux = np.{self.symbol}({varname}_aux, axis={ax})")
+
+        return lines, []
+
+
+class BroadcastInDim(Primitive):
+    def __init__(self):
+        super().__init__(
+            n_args=1,
+            valid_kwargs=("shape", "broadcast_dimensions", "sharding")
+        )
+
+    def _call(self, *args, **kwargs) -> tuple[list[str], list[jax.core.ClosedJaxpr]]:
+        varname = self.varname(args[0])
+        shape = kwargs["shape"]
+        broadcast_dimensions = kwargs["broadcast_dimensions"]
+        assert kwargs["sharding"] is None
+
+        lines = [f"np.broadcast_to({varname}, shape={shape})"]
+        return lines, []
+
+
 _numpy_primitive_mapping = {
     jax.lax.add_p: AddPrimitive(),
     jax.lax.mul_p: MulPrimitive(),
@@ -230,7 +267,17 @@ _numpy_primitive_mapping = {
     jax.lax.le_p: BinaryOperator("<="),
     jax.lax.eq_p: BinaryOperator("=="),
 
+    jax.lax.reduce_sum_p: ReduceOperator("sum"),
+    jax.lax.reduce_prod_p: ReduceOperator("prod"),
+    jax.lax.reduce_min_p: ReduceOperator("min"),
+    jax.lax.reduce_max_p: ReduceOperator("max"),
+    jax.lax.reduce_and_p: ReduceOperator("and"),
+    jax.lax.reduce_or_p: ReduceOperator("or"),
+    jax.lax.reduce_xor_p: ReduceOperator("xor"),
+
     jax.lax.convert_element_type_p: ConvertElementType(),
+    jax.lax.broadcast_in_dim_p: BroadcastInDim(),
+
     jax.lax.iota_p: Iota(),
 
     jax.lax.scan_p: Scan(),
