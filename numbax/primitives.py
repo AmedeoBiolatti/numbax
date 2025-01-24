@@ -31,7 +31,7 @@ class Primitive:
             missing_kwargs_str = ", ".join([("'" + str(k) + "'(=" + str(kwargs[k]) + ")") for k in missing_kwargs])
             raise ValueError(f"{missing_kwargs_str} not in kwargs for primitive {self.__class__.__name__}")
 
-    def _call(self, *args, **kwargs) -> tuple[list[str], list[jax.core.ClosedJaxpr]]:
+    def _call(self, *args: jax.core.Var | jax.core.Literal, **kwargs) -> tuple[list[str], list[jax.core.ClosedJaxpr]]:
         raise NotImplemented
 
     def __call__(self, *args, **kwargs) -> tuple[list[str], list[jax.core.ClosedJaxpr]]:
@@ -48,18 +48,50 @@ class Primitive:
 
 class AddPrimitive(Primitive):
     def __init__(self):
-        super().__init__(n_args=(1, None))
+        super().__init__(n_args=2)
 
     def _call(self, *args, **kwargs) -> tuple[list[str], list[jax.core.ClosedJaxpr]]:
-        return [" + ".join(self.varnames(*args))], []
+        return [f"np.add({self.varname(args[0])}, {self.varname(args[1])})"], []
+
+
+class SubPrimitive(Primitive):
+    def __init__(self):
+        super().__init__(n_args=2)
+
+    def _call(self, *args, **kwargs) -> tuple[list[str], list[jax.core.ClosedJaxpr]]:
+        return [f"np.subtract({self.varname(args[0])}, {self.varname(args[1])})"], []
+
+
+class DivPrimitive(Primitive):
+    def __init__(self):
+        super().__init__(n_args=2)
+
+    def _call(self, *args, **kwargs) -> tuple[list[str], list[jax.core.ClosedJaxpr]]:
+        return [f"np.divide({self.varname(args[0])}, {self.varname(args[1])})"], []
 
 
 class MulPrimitive(Primitive):
     def __init__(self):
-        super().__init__(n_args=(1, None))
+        super().__init__(n_args=2)
 
     def _call(self, *args, **kwargs) -> tuple[list[str], list[jax.core.ClosedJaxpr]]:
-        return [" * ".join(self.varnames(*args))], []
+        return [f"np.multiply({self.varname(args[0])}, {self.varname(args[1])})"], []
+
+
+class IntergerPow(Primitive):
+    def __init__(self):
+        super().__init__(n_args=1, valid_kwargs=("y",))
+
+    def _call(self, *args, **kwargs) -> tuple[list[str], list[jax.core.ClosedJaxpr]]:
+        return [f"{self.varname(args[0])} ** {kwargs['y']}"], []
+
+
+class Pow(Primitive):
+    def __init__(self):
+        super().__init__(n_args=2)
+
+    def _call(self, *args, **kwargs) -> tuple[list[str], list[jax.core.ClosedJaxpr]]:
+        return [f"{self.varname(args[0])} ** {self.varname(args[1])}"], []
 
 
 class NumpyUnaryFn(Primitive):
@@ -112,7 +144,7 @@ class Scan(Primitive):
         )
 
     def _call(self, *args, **params) -> tuple[list[str], list[jax.core.ClosedJaxpr]]:
-        assert not params['reverse']  # TODO
+        # assert not params['reverse']  # TODO
         assert params['num_consts'] == 0  # TODO
         assert params['num_carry'] >= 1
         assert isinstance(params['linear'], tuple)
@@ -141,7 +173,10 @@ class Scan(Primitive):
         lines.append(f"_carry = {init}")
         if len(aux_jaxpr.jaxpr.invars) == num_carry + 1:
             lines.append("_ys = []")
-        lines.append(f"for _x in {xs}:")
+        if params["reverse"]:
+            lines.append(f"for _x in {xs}[::-1]:")
+        else:
+            lines.append(f"for _x in {xs}:")
 
         if num_carry > 1:
             if len(aux_jaxpr.jaxpr.invars) == num_carry + 1:
@@ -216,6 +251,33 @@ class Cond(Primitive):
         return lines, [branch_true, branch_false]
 
 
+class SelectN(Primitive):
+    def __init__(self):
+        super().__init__(n_args=(3, None))
+
+    def _call(self, cond: jax.core.Var | jax.core.Literal, *args, **kwargs) -> tuple[
+        list[str], list[jax.core.ClosedJaxpr]]:
+        cond_name = self.varname(cond)
+        args_name = self.varnames(*args)
+        n_args = len(args)
+
+        if len(cond.aval.shape) == 0:
+            # scalars
+            cond_str = f"int({cond_name})"
+            args_str = ", ".join(args_name)
+            lines = [f"[{args_str}][{cond_str}]"]
+        else:
+            if "int" not in str(cond.aval.dtype):
+                cond_name = f"np.asarray({cond_name}, dtype=np.int32)"
+
+            cond_str = ",".join([f"{cond_name} == {i}" for i in range(n_args)])
+            args_str = ", ".join([f"np.asarray({a})" for a in args_name])
+
+            lines = [f"np.select([{cond_str}], [{args_str}])"]
+
+        return lines, []
+
+
 class ReduceOperator(Primitive):
     def __init__(self, symbol: str):
         super().__init__(
@@ -231,6 +293,7 @@ class ReduceOperator(Primitive):
         lines = [f"{varname}_aux = {varname}"]
         for ax in sorted(axes)[::-1]:
             lines.append(f"{varname}_aux = np.{self.symbol}({varname}_aux, axis={ax})")
+        lines[-1] = lines[-1].split(" = ")[-1]
 
         return lines, []
 
@@ -248,18 +311,104 @@ class BroadcastInDim(Primitive):
         broadcast_dimensions = kwargs["broadcast_dimensions"]
         assert kwargs["sharding"] is None
 
+        n_dim_in = len(args[0].aval.shape)
+        n_dim_out = len(shape)
+
+        if n_dim_in < n_dim_out:
+            new_shape = tuple(args[0].aval.shape) + tuple([1] * (n_dim_out - n_dim_in))
+            new_shape_str = ",".join([str(v) for v in new_shape])
+            if len(args[0].aval.shape) == 0:
+                varname = f"np.array({varname})"
+            varname = f"np.reshape({varname}, newshape=({new_shape_str}))"
         lines = [f"np.broadcast_to({varname}, shape={shape})"]
         return lines, []
 
 
+class Reshape(Primitive):
+    def __init__(self):
+        super().__init__(
+            n_args=1,
+            valid_kwargs=("new_sizes", "dimensions", "sharding")
+        )
+
+    def _call(self, *args, **kwargs) -> tuple[list[str], list[jax.core.ClosedJaxpr]]:
+        assert kwargs["dimensions"] is None
+        assert kwargs["sharding"] is None
+
+        varname = self.varname(args[0])
+        if len(args[0].aval.shape) == 0:
+            varname = f"np.array({varname})"
+        axes_str = "(" + ",".join([str(v) for v in kwargs["new_sizes"]]) + ")"
+
+        list = [f"np.reshape({varname}, newshape={axes_str})"]
+        return list, []
+
+
+class Transpose(Primitive):
+    def __init__(self):
+        super().__init__(
+            n_args=1,
+            valid_kwargs=("permutation",)
+        )
+
+    def _call(self, *args, **kwargs) -> tuple[list[str], list[jax.core.ClosedJaxpr]]:
+        varname = self.varname(args[0])
+        axes_str = "(" + ",".join([str(v) for v in kwargs["permutation"]]) + ")"
+
+        lines = []
+        lines.append(f"np.transpose({varname}, axes={axes_str})")
+
+        return lines, []
+
+
+class PJit(Primitive):
+    def __init__(self):
+        super().__init__(
+            n_args=(1, None),
+            valid_kwargs=(
+                'jaxpr',
+                'in_shardings', 'out_shardings',
+                'in_layouts', 'out_layouts',
+                'resource_env',
+                'donated_invars',
+                'name',
+                'keep_unused',
+                'inline',
+                'compiler_options_kvs')
+        )
+
+    def _call(self, *args, **kwargs) -> tuple[list[str], list[jax.core.ClosedJaxpr]]:
+        assert all([isinstance(v, jax._src.sharding_impls.UnspecifiedValue) for v in kwargs["in_shardings"]])
+        assert all([isinstance(v, jax._src.sharding_impls.UnspecifiedValue) for v in kwargs["out_shardings"]])
+        assert all([v is None for v in kwargs["in_layouts"]])
+        assert all([v is None for v in kwargs["out_layouts"]])
+        assert kwargs["resource_env"] is None
+        assert all([not v for v in kwargs["donated_invars"]])
+        assert not kwargs["keep_unused"]
+
+        varnames = self.varnames(*args)
+
+        varnames_str = ", ".join(varnames)
+        lines = [f"aux_fn0({varnames_str})"]
+
+        return lines, [kwargs["jaxpr"]]
+
+
 _numpy_primitive_mapping = {
     jax.lax.add_p: AddPrimitive(),
+    jax.lax.sub_p: SubPrimitive(),
     jax.lax.mul_p: MulPrimitive(),
+    jax.lax.div_p: DivPrimitive(),
+    jax.lax.integer_pow_p: IntergerPow(),
+    jax.lax.pow_p: Pow(),
+    jax._src.ad_util.add_any_p: AddPrimitive(),
 
     jax.lax.exp_p: NumpyUnaryFn('exp'),
     jax.lax.log_p: NumpyUnaryFn('log'),
     jax.lax.sin_p: NumpyUnaryFn('sin'),
     jax.lax.cos_p: NumpyUnaryFn('cos'),
+    jax.lax.neg_p: NumpyUnaryFn('negative'),
+    jax.lax.sqrt_p: NumpyUnaryFn('sqrt'),
 
     jax.lax.gt_p: BinaryOperator(">"),
     jax.lax.lt_p: BinaryOperator("<"),
@@ -277,11 +426,15 @@ _numpy_primitive_mapping = {
 
     jax.lax.convert_element_type_p: ConvertElementType(),
     jax.lax.broadcast_in_dim_p: BroadcastInDim(),
+    jax.lax.reshape_p: Reshape(),
+    jax.lax.transpose_p: Transpose(),
 
     jax.lax.iota_p: Iota(),
 
     jax.lax.scan_p: Scan(),
-    jax.lax.cond_p: Cond()
+    jax.lax.cond_p: Cond(),
+    jax._src.pjit.pjit_p: PJit(),
+    jax.lax.select_n_p: SelectN()
 }
 
 
