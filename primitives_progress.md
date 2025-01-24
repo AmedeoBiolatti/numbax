@@ -40,7 +40,7 @@
 - [ ] cumsum_p
 - [ ] device_put_p
 - [ ] digamma_p
-- [ ] div_p
+- [x] div_p
 - [ ] dot_general_p
 - [ ] dynamic_slice_p
 - [ ] dynamic_update_slice_p
@@ -62,7 +62,7 @@
 - [ ] igammac_p
 - [ ] imag_p
 - [ ] infeed_p
-- [ ] integer_pow_p
+- [x] integer_pow_p
 - [x] iota_p
 - [ ] is_finite_p
 - [x] le_p
@@ -78,7 +78,7 @@
 - [ ] min_p
 - [x] mul_p
 - [ ] ne_p
-- [ ] neg_p
+- [x] neg_p
 - [ ] nextafter_p
 - [ ] not_p
 - [ ] optimization_barrier_p
@@ -89,28 +89,28 @@
 - [ ] pmin_p
 - [ ] polygamma_p
 - [ ] population_count_p
-- [ ] pow_p
+- [x] pow_p
 - [ ] ppermute_p
 - [ ] psum_p
 - [ ] ragged_all_to_all_p
 - [ ] random_gamma_grad_p
 - [ ] real_p
-- [ ] reduce_and_p
-- [ ] reduce_max_p
-- [ ] reduce_min_p
-- [ ] reduce_or_p
+- [x] reduce_and_p
+- [x] reduce_max_p
+- [x] reduce_min_p
+- [x] reduce_or_p
 - [ ] reduce_p
 - [ ] reduce_precision_p
-- [ ] reduce_prod_p
+- [x] reduce_prod_p
 - [x] reduce_sum_p
 - [ ] reduce_window_max_p
 - [ ] reduce_window_min_p
 - [ ] reduce_window_p
 - [ ] reduce_window_sum_p
-- [ ] reduce_xor_p
+- [x] reduce_xor_p
 - [ ] regularized_incomplete_beta_p
 - [ ] rem_p
-- [ ] reshape_p
+- [x] reshape_p
 - [ ] rev_p
 - [ ] rng_bit_generator_p
 - [ ] rng_uniform_p
@@ -126,7 +126,7 @@
 - [ ] select_and_gather_add_p
 - [ ] select_and_scatter_add_p
 - [ ] select_and_scatter_p
-- [ ] select_n_p
+- [x] select_n_p
 - [ ] sharding_constraint_p
 - [ ] shift_left_p
 - [ ] shift_right_arithmetic_p
@@ -137,15 +137,15 @@
 - [ ] slice_p
 - [ ] sort_p
 - [ ] split_p
-- [ ] sqrt_p
+- [x] sqrt_p
 - [ ] square_p
 - [ ] squeeze_p
 - [ ] stop_gradient_p
-- [ ] sub_p
+- [x] sub_p
 - [ ] tan_p
 - [ ] tanh_p
 - [ ] top_k_p
-- [ ] transpose_p
+- [x] transpose_p
 - [ ] while_p
 - [ ] xor_p
 - [ ] zeta_p
