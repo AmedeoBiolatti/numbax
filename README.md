@@ -28,6 +28,13 @@ The mini-benchmark in `examples/minimal_example.py` returns the following times 
 | numbax:jit          | 0.2435              | 0.0116 ($\pm$ 0.0002) |
 | numbax:jit-fastmath | 0.1798              | 0.0116 ($\pm$ 0.0002) |
 
+The one in `examples/example_linear_model.py` returns the following values
+
+|            | Compile + first run | Run      |
+|------------|---------------------|----------|
+| jax:jit    | 1.188158            | 1.119229 |
+| numbax:jit | 5.755823            | 2.108979 |
+
 # WARNING: Very Early Development 🚧
 
 This project is in its very early stages of development. Features may be incomplete, APIs unstable, and breaking changes
