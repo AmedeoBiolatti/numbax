@@ -1,11 +1,13 @@
 import jax
 
 import numba
+import numpy as np
+
 from numbax.numpize import numpize_jaxpr
 
 
-def jit(fn, *, fast=False, parallel=False):
-    return JitWrapped(fn, fast=fast, parallel=parallel)
+def jit(fn, *, nopython=True, fastmath=False, parallel=False):
+    return JitWrapped(fn, nopython=nopython, fastmath=fastmath, parallel=parallel)
 
 
 def get_specs(arg):
@@ -13,9 +15,10 @@ def get_specs(arg):
 
 
 class JitWrapped:
-    def __init__(self, fn, *, fast=False, parallel=False):
+    def __init__(self, fn, *, nopython=True, fastmath=False, parallel=False):
         self.fn = fn
-        self.fast = fast
+        self.nopython = nopython
+        self.fastmath = fastmath
         self.parallel = parallel
 
         self._lowered = {}
@@ -29,7 +32,10 @@ class JitWrapped:
         _, self._out_trees[specs] = jax.tree.flatten(out_shape)
 
         self._last_fn_numpized = numpize_jaxpr(jaxpr)
-        fn_numba = numba.njit(self._last_fn_numpized, parallel=self.parallel, fastmath=self.fast)
+        if self.nopython:
+            fn_numba = numba.njit(self._last_fn_numpized, parallel=self.parallel, fastmath=self.fastmath)
+        else:
+            fn_numba = numba.jit(self._last_fn_numpized)
         self._lowered[specs] = fn_numba
 
     def get_in_specs(self, *args, **kwargs):
@@ -43,7 +49,14 @@ class JitWrapped:
             self._lower(specs, *args, **kwargs)
 
         flattened_args, _ = jax.tree.flatten((args, kwargs))
-        flattened_res = self._lowered[specs](*flattened_args)
+        flattened_args_ = []
+        for arg, dtype in zip(flattened_args, specs[1]):
+            if "jax" in str(arg.__class__):
+                arg = arg._value.astype(str(dtype))[()]
+            if isinstance(arg, int | float | bool):
+                arg = np.asarray(arg, dtype=str(dtype))[()]
+            flattened_args_.append(arg)
+        flattened_res = self._lowered[specs](*flattened_args_)
         if not isinstance(flattened_res, tuple):
             flattened_res = flattened_res,
         res = self._out_trees[specs].unflatten(flattened_res)
