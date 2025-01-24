@@ -24,7 +24,7 @@ def _process_jaxpr(jaxpr: jax.core.Jaxpr, name: str, with_signature: bool = Fals
     other_jaxprs: list[jax.core.ClosedJaxpr] = []
 
     # invars
-    str_invars = ', '.join(utils.jaxpr_vars_name(jaxpr.invars))
+    str_invars = ', '.join(utils.jaxpr_vars_name(jaxpr.invars, with_typing=True))
     if with_signature:
         jaxpr_lines.append(_build_cfunc_decorator(jaxpr.invars, jaxpr.outvars))
     jaxpr_lines.append(f"def {name}({str_invars}):")
@@ -51,7 +51,7 @@ def _process_jaxpr(jaxpr: jax.core.Jaxpr, name: str, with_signature: bool = Fals
 
 
 def _process_eqn(eqn: jax.core.JaxprEqn, name: str, j: int = 0) -> tuple[list[str], list[jax.core.ClosedJaxpr]]:
-    outvars_str = utils.jaxpr_vars_name(eqn.outvars)
+    outvars_str = utils.jaxpr_vars_name(eqn.outvars, with_typing=True)
 
     primitive = primitives.get(eqn.primitive)
 
@@ -59,7 +59,7 @@ def _process_eqn(eqn: jax.core.JaxprEqn, name: str, j: int = 0) -> tuple[list[st
     for i in range(len(eqn_aux_jaxprs)):
         eqn_lines = [line.replace(f"aux_fn{i}", f"{name}__aux{i + j}") for line in eqn_lines]
 
-    lhs = ', '.join(outvars_str)
+    lhs = ", ".join(outvars_str)
     eqn_lines[-1] = f"{lhs} = {eqn_lines[-1]}"
 
     return eqn_lines, eqn_aux_jaxprs
@@ -74,6 +74,7 @@ def _dtype_mapping(dtype):
         "float16": "numba.types.float16",
         "float32": "numba.types.float32",
         "float64": "numba.types.float64",
+        "bool": "numba.types.bool"
     }
     return _mapping[dtype]
 
